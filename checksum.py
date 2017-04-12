@@ -14,7 +14,7 @@ def checksum(f):
         s = s + int(f[i:i + 4], 16)
     a = (s & 0xFFFF0000) >> 16
     b = (s & 0x0000FFFF)
-    c = ~(a + b)
+    c = ~(a + b) & 0xFFFF
     #print format(c, '06x')
     print hex(c)
 checksum("dcc023c2dcc023c2faef0004000001020304")
