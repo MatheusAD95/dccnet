@@ -16,5 +16,6 @@ def checksum(f):
     b = (s & 0x0000FFFF)
     c = ~(a + b) & 0xFFFF
     #print format(c, '06x')
-    print hex(c)
-checksum("dcc023c2dcc023c2faef0004000001020304")
+    return hex(c)
+check = checksum("dcc023c2dcc023c2faef0004000001020304")
+print int(check,16) - int('0xfaef',16)
