@@ -1,6 +1,7 @@
 import struct
 import socket
 import sys
+import 
 #toDo add checksum to frame
 #check if it is right to do data/2
 #change HOST and PORT to spec 
@@ -16,6 +17,10 @@ if int(length) % 2 != 0:
   	data = data.ljust(2*int(length)+2,'0')
 print data
 length = length.zfill(4)
+preframe =  header+'0000'+length+syncNum+data
+check = errorChk.checksum(preframe)
+frame = header+check+length+syncNum+data
+print frame
 frame = header+length+syncNum+data #add checksum
 dest = (HOST,PORT)
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
