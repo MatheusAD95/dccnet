@@ -1,7 +1,7 @@
 import struct
 import socket
 import sys
-import 
+import checksum as errorChk
 #toDo add checksum to frame
 #check if it is right to do data/2
 #change HOST and PORT to spec 
