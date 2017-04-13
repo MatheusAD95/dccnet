@@ -12,8 +12,11 @@ syncNum = '0'.zfill(4)
 f = open(sys.argv[1],'r')
 data = f.read()
 length =str(len(data)/2)
+if int(length) % 2 != 0:
+  	data = data.ljust(2*int(length)+2,'0')
+print data
 length = length.zfill(4)
-frame = header+length+syncNum+penes #add checksum
+frame = header+length+syncNum+data #add checksum
 dest = (HOST,PORT)
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
