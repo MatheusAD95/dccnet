@@ -1,5 +1,6 @@
 import socket
 import struct
+import checksum as errorChk
 HOST = ''              # Endereco IP do Servidor
 PORT = 51515
 syncNum = 0      # Porta que o Servidor esta
@@ -16,15 +17,20 @@ while True:
   msg = con.recv(28)
   length = msg[21:24]
   ID = msg[25:28]
-  if int(ID) == syncNum:
-    con.send(str(syncNum))
-    if syncNum == 0:
-      syncNum =1;
+  check = msg[16:20]
+  while True:
+    if int(ID) == syncNum:
+      if syncNum == 0:
+        syncNum = 1
+      else:
+        syncNum = 0
     else:
-      syncNum = 0
-  else:
-    con.recv(28)
-    length = msg[21:24]
-    ID = msg[25:28]
-  data = con.recv(int(length)*2)
+      con.recv(28)
+      length = msg[21:24]
+      ID = msg[25:28]
+    data = con.recv(int(length)*2)
+    msg = msg+data
+    if check == errorChk.checksum(msg):
+      con.send(str(syncNum))
+      break
 con.close()
