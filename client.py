@@ -26,6 +26,9 @@ preframe =  header+'0000'+length+syncNum+data
 check = errorChk.checksum(preframe)
 frame = header+check+length+syncNum+data
 tcp.send(frame)
-ack = tcp.recv(1)
+try:
+	ack = tcp.recv(1)
+except TimeoutError:
+	tcp.send(frame)
 print ack
 tcp.close()
