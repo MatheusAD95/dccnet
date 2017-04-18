@@ -14,11 +14,11 @@ while True:
   con, cliente = tcp.accept()
   print 'Conectado por', cliente
   con.send(str(syncNum))
-  msg = con.recv(28)
-  length = msg[21:24]
-  ID = msg[25:28]
-  check = msg[16:20]
   while True:
+    msg = con.recv(28)
+    length = msg[21:24]
+    ID = msg[25:28]
+    check = msg[16:20]
     if int(ID) == syncNum:
       if syncNum == 0:
         syncNum = 1
