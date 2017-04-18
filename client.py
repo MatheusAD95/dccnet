@@ -28,7 +28,7 @@ frame = header+check+length+syncNum+data
 tcp.send(frame)
 try:
 	ack = tcp.recv(1)
-except TimeoutError:
+except socket.timeout:
 	tcp.send(frame)
 print ack
 tcp.close()
