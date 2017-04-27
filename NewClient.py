@@ -1,4 +1,4 @@
-mport struct
+import struct
 import socket
 import sys
 import checksum as errorChk
