@@ -2,7 +2,7 @@ import struct
 import socket
 import sys
 import checksum as errorChk
-if sys.argv[1] == "-c":
+if sys.argv[1] == "-s":
   HOST = ''              # Endereco IP do Servidor
 	PORT = int(sys.argv[2])
 	syncNum = 0    # Porta que o Servidor esta
