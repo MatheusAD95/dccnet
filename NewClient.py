@@ -1,39 +1,36 @@
-import struct
-import socket
-import sys
-import checksum as errorChk
-#toDo add checksum to frame
-#check if it is right to do data/2
-#change HOST and PORT to spec 
-#figure if the read 1 2 3 4 is always equal 01 02 03 04, we read 1 2 3 4 from file or 01 02 03 04, how to diferentiate 12 from 1 2 
-if sys.argv[1] == "-c":
-	portHost = sys.argv[2]
-	splited = portHost.split(":")
-	print splited
-	HOST = splited[0]
-	PORT = int(splited[1])
+if sys.argv[1] == "-s":
+	HOST = ''              # Endereco IP do Servidor
+	PORT = int(sys.argv[2])
+	syncNum = 0    # Porta que o Servidor esta
+	print "this is the server"
 	tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	dest = (HOST,PORT)
-	tcp.connect(dest)
-	tcp.settimeout(5)
-	sync = 0x0
-	header = 0xdcc023c2;
-	f = open(sys.argv[3],'r')
-	data = f.read()
-	length =len(data)
-	print data
-	preframe =  hex(header)[2:] +hex(header)[2:]+'0000'+str(length/2).zfill(4)+str(sync).zfill(4)+str(data)
-	print preframe
-	check = errorChk.checksum(preframe)
-	tcp.send(struct.pack("!I",header))
-	tcp.send(struct.pack("!I",header))
-	tcp.send(struct.pack("!I", int(check,16)))
-	tcp.send(struct.pack("!I",length/2))
-	tcp.send(struct.pack("!I",sync))
-	tcp.send(struct.pack("!I",int(data,16)))
-	try:
-		ack = tcp.recv(1)
-	except socket.timeout:
-		tcp.send(frame)	
-	print ack
-	tcp.close();
+	orig = (HOST, PORT)
+	print HOST
+	tcp.bind(orig)
+	tcp.listen(1)
+	while True:
+	  con, cliente = tcp.accept()
+	  print 'Conectado por', cliente
+	  con.send(str(syncNum))
+	  while True:
+	    header32 = con.recv(4)
+	    Header1 =  hex(struct.unpack('!I',header32)[0])
+	    header2 = con.recv(4)
+	    Header2 =  hex(struct.unpack('!I',header2)[0])
+	    check = con.recv(4)
+	    Check  = hex(struct.unpack('!I',check)[0])
+	    length = con.recv(4)
+	    Length =  hex(struct.unpack('!I',length)[0])
+	    iD  = con.recv(4)
+	    ID = hex(struct.unpack('!I',iD)[0])
+	    print ID
+	    data = con.recv(int(struct.unpack('!I',length)[0]))
+	    Data =  hex(struct.unpack('!I',data)[0])
+	    print Data
+	    preframe = Header1[2:] +Header2[2:]+'0000'+Length[2:].zfill(4)+ID[2:].zfill(4)+Data[2:]
+	    print preframe
+	    print Check[2:]
+	    print errorChk.checksum(preframe)
+	    if Check[2:] == errorChk.checksum(preframe):
+			break
+	con.close()
