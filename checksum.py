@@ -9,4 +9,3 @@ def checksum(f):
         s = s + int(f[i:i + 4], 16)
     carry = (s & 0xFFFF0000) >> 16
     return hex(~(carry + (s & 0xFFFF)) & 0xFFFF) [2:]
-print hex(checksum("dcc023c2dcc023c2faef0004000001020304"))
