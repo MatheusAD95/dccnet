@@ -1,8 +1,13 @@
 import socket
-from struct import pack
+from struct import pack, unpack
 from sys import argv
 from checksum import checksum
 #TODO divide data into (256 - 112) bits blocks?
+
+def recv4B(con):
+    data = con.recv(4)
+    unpacked_data = unpack('!I', data)[0]
+    return unpacked_data
 
 def send_frame(con, ID, data):
     header = 0xdcc023c2
@@ -12,9 +17,7 @@ def send_frame(con, ID, data):
     # len computes the number of bytes, but we need the number of 16bits blocks
     length = len(data)/2
     frame += str(length).zfill(4)
-    # ID used to sync
     frame += str(ID).zfill(4)
-    # data
     frame += data
     cs = checksum(frame)
     con.send(pack("!I", header))
@@ -24,6 +27,20 @@ def send_frame(con, ID, data):
     con.send(pack("!I", ID))
     #TODO zfill data in a way that it always has an even length
     con.send(data)
+    return cs
+
+def recv_ack_frame(con, ID, cs):
+    sync1 = recv4B(con)
+    sync2 = recv4B(con)
+    while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
+	sync1 = sync2
+	sync2 = recv4B(con)
+    ack_cs = recv4B(con)
+    length = recv4B(con)
+    ack_ID = recv4B(con)
+    if cs == ack_cs and ack_ID == ID and length == 0:
+	return True
+    return False
 
 if argv[1] == "-c":
     (HOST, PORT) = argv[2].split(":")
@@ -34,10 +51,13 @@ if argv[1] == "-c":
     data = f.read()
     length = len(data)
     ID = 0
-    send_frame(tcp, ID, data)
-    #try:
-    #	ack = tcp.recv(1)
-    #except socket.timeout:
-    #	tcp.send(frame)	
-    #print ack
+    ack = 0
+    while ack == 0:
+	cs = send_frame(tcp, ID, data)
+	try:
+	    if recv_ack_frame(tcp, ID, cs):
+		ack = 1
+	except socket.timeout:
+	    ack = 0
+    print "Send sucessfull"
     tcp.close();
