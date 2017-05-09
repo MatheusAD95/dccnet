@@ -2,8 +2,8 @@ import socket
 from struct import pack, unpack
 from sys import argv
 from checksum import checksum
-#TODO divide data into (256 - 112) bits blocks?
 
+#TODO divide data into (256 - 112) bits blocks?
 def recv4B(con):
     data = con.recv(4)
     unpacked_data = unpack('!I', data)[0]
@@ -20,11 +20,13 @@ def send_frame(con, ID, data):
     frame += str(ID).zfill(4)
     frame += data
     cs = checksum(frame)
+    con.send('a')
     con.send(pack("!I", header))
-    con.send(pack("!I", header))
-    con.send(pack("!I", cs))
-    con.send(pack("!I", length))
-    con.send(pack("!I", ID))
+    #con.send(pack("!I", header))
+    #con.send(pack("!I", header))
+    #con.send(pack("!I", cs))
+    #con.send(pack("!I", length))
+    #con.send(pack("!I", ID))
     #TODO zfill data in a way that it always has an even length
     con.send(data)
     return cs
@@ -53,11 +55,12 @@ if argv[1] == "-c":
     ID = 0
     ack = 0
     while ack == 0:
-	cs = send_frame(tcp, ID, data)
-	try:
-	    if recv_ack_frame(tcp, ID, cs):
-		ack = 1
-	except socket.timeout:
-	    ack = 0
+        #tcp.send('a')
+        cs = send_frame(tcp, ID, data)
+        #try:
+        #    if recv_ack_frame(tcp, ID, cs):
+        #        ack = 1
+        #except socket.timeout:
+        #    ack = 0
     print "Send sucessfull"
     tcp.close();

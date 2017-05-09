@@ -11,23 +11,45 @@ def recv4B(con):
     unpacked_data = unpack('!I', data)[0]
     return unpacked_data
 
+def recv4BR(con):
+    data = ""
+    data += con.recv(1)
+    data += con.recv(1)
+    data += con.recv(1)
+    data += con.recv(1)
+    unpacked_data = unpack('!I', data)[0]
+    print "LEN: "  + str(len(data))
+    return (data, unpacked_data)
+
+def concat1B(con, raw):
+    nraw = raw[1:]
+    nraw += con.recv(1)
+    unpacked_data = unpack('!I', nraw)[0]
+    return (unpacked_data, nraw)
+
 def recv_frame(con):
-    sync1 = recv4B(con)
-    sync2 = recv4B(con)
-    # receives data until it finds the double sync 0xdcc023c2
-    while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
-	sync1 = sync2
-	sync2 = recv4B(con)
-    cs = recv4B(con)
-    length = recv4B(con)
-    ID = recv4B(con)
-    data = con.recv(4*length, 16)
-    frame = hex(sync1)[2:] + hex(sync2)[2:]
-    frame += '0000'
-    frame += str(length).zfill(4)
-    frame += str(ID).zfill(4)
-    frame += data
-    return (frame, ID, cs)
+    (rsync1, sync1) = recv4BR(con)
+    while sync1 != 0xdcc023c2:
+        #sync1 = concat1B(con, rsync1)
+        print "LENRSYNC1: " + str(len(rsync1))
+        (sync1, rsync1) = concat1B(con, rsync1)
+    print hex(sync1)
+    return ("0", "0", "0")
+    #sync2 = recv4B(con)
+    ## receives data until it finds the double sync 0xdcc023c2
+    #while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
+    #    sync1 = sync2
+    #    sync2 = recv4B(con)
+    #cs = recv4B(con)
+    #length = recv4B(con)
+    #ID = recv4B(con)
+    #data = con.recv(4*length, 16)
+    #frame = hex(sync1)[2:] + hex(sync2)[2:]
+    #frame += '0000'
+    #frame += str(length).zfill(4)
+    #frame += str(ID).zfill(4)
+    #frame += data
+    #return (frame, ID, cs)
 
 def send_ack_frame(con, ID, cs):
     header = 0xdcc023c2
@@ -50,9 +72,9 @@ if argv[1] == "-s":
 	con, cliente = tcp.accept()
 	print 'Conectado por ', cliente
 	(frame, frameID, cs) = recv_frame(con)
-	print "Frame: " + frame
-	if checksum(frame) == cs and frameID != ID:
-	    print "Data is correct. Preparing to send ack"
-	    send_ack_frame(con, frameID, cs)
-	    print "Ack sent"
+        #print "Frame: " + frame
+	#if checksum(frame) == cs and frameID != ID:
+	#    print "Data is correct. Preparing to send ack"
+	#    send_ack_frame(con, frameID, cs)
+	#    print "Ack sent"
     con.close()
