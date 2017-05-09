@@ -21,13 +21,17 @@ def recv_frame(con):
     cs = recv4B(con)
     length = recv4B(con)
     ID = recv4B(con)
+    flag = 0
+    flag_end = con.recv(1)
+    flag = flag_end & 0x80
+    print "This is" , flag
     data = con.recv(4*length, 16)
     frame = hex(sync1)[2:] + hex(sync2)[2:]
     frame += '0000'
     frame += str(length).zfill(4)
     frame += str(ID).zfill(4)
     frame += data
-    return (frame, ID, cs)
+    return (frame, ID, cs,flag)
 
 def send_ack_frame(con, ID, cs):
     header = 0xdcc023c2
@@ -46,13 +50,17 @@ if argv[1] == "-s":
     tcp.bind((HOST, PORT))
     tcp.listen(1)
     ID = 1
+    flag = 0;
     while True:
-	con, cliente = tcp.accept()
-	print 'Conectado por ', cliente
-	(frame, frameID, cs) = recv_frame(con)
-	print "Frame: " + frame
-	if checksum(frame) == cs and frameID != ID:
-	    print "Data is correct. Preparing to send ack"
-	    send_ack_frame(con, frameID, cs)
-	    print "Ack sent"
+    	con, cliente = tcp.accept()
+    	print 'Conectado por ', cliente
+        while True:
+    	    (frame, frameID, cs,flag) = recv_frame(con)
+    	    print "Frame: " + frame
+    	    if checksum(frame) == cs and frameID != ID:
+    	        print "Data is correct. Preparing to send ack"
+    	        send_ack_frame(con, frameID, cs)
+    	        print "Ack sent"
+                if flag == 1:
+                    break
     con.close()

@@ -9,22 +9,27 @@ def recv4B(con):
     unpacked_data = unpack('!I', data)[0]
     return unpacked_data
 
-def send_frame(con, ID, data):
+def send_frame(con, ID, data, flag_end):
     header = 0xdcc023c2
     frame = hex(header)[2:] + hex(header)[2:]
     # placeholder for the checksum
     frame += '0000'
+    endt = 0
+    if flag_end == 1:
+        endt = endt | 0x80
     # len computes the number of bytes, but we need the number of 16bits blocks
     length = len(data)/2
     frame += str(length).zfill(4)
     frame += str(ID).zfill(4)
     frame += data
+    print hex(endt)
     cs = checksum(frame)
     con.send(pack("!I", header))
     con.send(pack("!I", header))
     con.send(pack("!I", cs))
     con.send(pack("!I", length))
     con.send(pack("!I", ID))
+    con.send(0x80)
     #TODO zfill data in a way that it always has an even length
     con.send(data)
     return cs
@@ -50,14 +55,23 @@ if argv[1] == "-c":
     f = open(argv[3],'r')
     data = f.read()
     length = len(data)
+    data_len = length/256
     ID = 0
+    end_flag = 0
     ack = 0
-    while ack == 0:
-	cs = send_frame(tcp, ID, data)
-	try:
-	    if recv_ack_frame(tcp, ID, cs):
-		ack = 1
-	except socket.timeout:
-	    ack = 0
-    print "Send sucessfull"
+    for i in range(0, data_len + 1):
+    	while ack == 0:
+            if i == data_len:
+                end_flag = 1
+            a = i*256
+            b = a + 256
+            if i == data_len :
+                b = length % 256
+    	    cs = send_frame(tcp, ID, data[a:b],end_flag)
+    	    try:
+    	        if recv_ack_frame(tcp, ID, cs):
+                    ack = 1
+    	    except socket.timeout:
+    	        ack = 0
+    	print "Send sucessfull"
     tcp.close();
