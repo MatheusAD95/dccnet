@@ -9,30 +9,29 @@ def recv4B(con):
     unpacked_data = unpack('!I', data)[0]
     return unpacked_data
 
-def send_frame(con, ID, data, flag_end):
+def send_frame(con, ID, flags, data):
     header = 0xdcc023c2
     frame = hex(header)[2:] + hex(header)[2:]
     # placeholder for the checksum
     frame += '0000'
-    endt = 0
-    if flag_end == 1:
-        endt = endt | 0x80
     # len computes the number of bytes, but we need the number of 16bits blocks
     length = len(data)/2
     frame += str(length).zfill(4)
     frame += str(ID).zfill(4)
-    frame += data
-    print hex(endt)
+    #frame += //flags
+    frame += data #TODO .zfill(length + length%2)?
     cs = checksum(frame)
     con.send('a')
+    con.send('b')
     con.send(pack("!I", header))
     con.send(pack("!I", header))
-    #con.send(pack("!I", cs))
-    #con.send(pack("!I", length))
-    #con.send(pack("!I", ID))
+    con.send(pack("!I", cs))
+    con.send(pack("!I", length))
+    con.send(pack("!I", ID))
+    con.send(pack("!B", flags))
     #con.send(0x80)
     #TODO zfill data in a way that it always has an even length
-    #con.send(data)
+    con.send(data)
     return cs
 
 def recv_ack_frame(con, ID, cs):
@@ -48,6 +47,7 @@ def recv_ack_frame(con, ID, cs):
 	return True
     return False
 
+FRAME_LENGTH = (1024 - 112)/8 #112 bits are used for the header
 if argv[1] == "-c":
     (HOST, PORT) = argv[2].split(":")
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,19 +56,20 @@ if argv[1] == "-c":
     f = open(argv[3],'r')
     data = f.read()
     length = len(data)
-    data_len = length/256
+    #data_len = length/256
+    nframes = length/FRAME_LENGTH
     ID = 0
     end_flag = 0
     ack = 0
-    for i in range(0, data_len + 1):
+    for i in range(nframes + 1):
         while ack == 0:
-            if i == data_len:
-                end_flag = 1
             a = i*256
             b = a + 256
-            if i == data_len :
-                b = length % 256
-            cs = send_frame(tcp, ID, data[a:b],end_flag)
+            flags = 0x00
+            if i == nframes: #last frame
+                flags |= 0x40 
+                b = length%256
+            cs = send_frame(tcp, ID, flags, data[a:b])
             try:
                 if recv_ack_frame(tcp, ID, cs):
                     ack = 1

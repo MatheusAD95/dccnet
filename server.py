@@ -36,26 +36,22 @@ def recv_frame(con):
     (sync1, sync2, rsync) = sync_packet(con)
     while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
         (sync1, sync2, rsync) = concat1B(con, rsync)
-    print "Synced!"
-    #    print "LENRSYNC1: " + str(len(rsync1))
-    #    (sync1, rsync1) = concat1B(con, rsync1)
-    #print hex(sync1)
-    return ("0", "0", "0", "0")
     #sync2 = recv4B(con)
     ## receives data until it finds the double sync 0xdcc023c2
     #while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
     #    sync1 = sync2
     #    sync2 = recv4B(con)
-    #cs = recv4B(con)
-    #length = recv4B(con)
-    #ID = recv4B(con)
-    #data = con.recv(4*length, 16)
-    #frame = hex(sync1)[2:] + hex(sync2)[2:]
-    #frame += '0000'
-    #frame += str(length).zfill(4)
-    #frame += str(ID).zfill(4)
-    #frame += data
-    #return (frame, ID, cs)
+    cs = recv4B(con)
+    length = recv4B(con)
+    ID = recv4B(con)
+    flags = unpack("!B", con.recv(1))[0]
+    data = con.recv(4*length, 16) #TODO length should be forced to be even
+    frame = hex(sync1)[2:] + hex(sync2)[2:]
+    frame += '0000'
+    frame += str(length).zfill(4)
+    frame += str(ID).zfill(4)
+    frame += data
+    return (frame, ID, cs, flags)
 
 def send_ack_frame(con, ID, cs):
     header = 0xdcc023c2
@@ -81,10 +77,11 @@ if argv[1] == "-s":
         while True:
     	    (frame, frameID, cs, flag) = recv_frame(con)
     	    print "Frame: " + frame
-            #if checksum(frame) == cs and frameID != ID:
-    	    #    print "Data is correct. Preparing to send ack"
-    	    #    send_ack_frame(con, frameID, cs)
-    	    #    print "Ack sent"
-            #    if flag == 1:
-            #        break
+            if checksum(frame) == cs and frameID != ID:
+    	        print "Data is correct. Preparing to send ack"
+    	        send_ack_frame(con, frameID, cs)
+    	        print "Ack sent"
+                if flag == 0x40:
+                    print "Closing connection"
+                    break
     con.close()
