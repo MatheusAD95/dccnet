@@ -56,19 +56,18 @@ if argv[1] == "-c":
     f = open(argv[3],'r')
     data = f.read()
     length = len(data)
-    #data_len = length/256
     nframes = length/FRAME_LENGTH
     ID = 0
     end_flag = 0
     ack = 0
     for i in range(nframes + 1):
         while ack == 0:
-            a = i*256
-            b = a + 256
+            a = i*FRAME_LENGTH
+            b = a + FRAME_LENGTH
             flags = 0x00
             if i == nframes: #last frame
                 flags |= 0x40 
-                b = length%256
+                b = length%FRAME_LENGTH
             cs = send_frame(tcp, ID, flags, data[a:b])
             try:
                 if recv_ack_frame(tcp, ID, cs):
