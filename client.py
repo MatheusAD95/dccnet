@@ -56,6 +56,15 @@ if argv[1] == "-c":
     tcp.settimeout(5)
     f = open(argv[3],'r')
     data = f.read()
+    proc_data = []
+    for byte in data:
+        #print byte
+        proc_data.insert(0, hex(unpack("!B", byte)[0])[2:].zfill(2))
+    #print proc_data
+    #data = proc_data
+#
+    #hex(unpack(data[0]))[2:]
+#
     length = len(data)
     nframes = length/FRAME_LENGTH
     ID = 0
