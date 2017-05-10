@@ -3,7 +3,6 @@ from struct import pack, unpack
 from sys import argv
 from checksum import checksum
 
-#TODO divide data into (256 - 112) bits blocks?
 def recv4B(con):
     data = con.recv(4)
     unpacked_data = unpack('!I', data)[0]
@@ -14,12 +13,14 @@ def send_frame(con, ID, flags, data):
     frame = hex(header)[2:] + hex(header)[2:]
     # placeholder for the checksum
     frame += '0000'
-    # len computes the number of bytes, but we need the number of 16bits blocks
-    length = len(data)/2
+    length = len(data)
+    print data
+    print str(length).zfill(4) 
     frame += str(length).zfill(4)
-    frame += str(ID).zfill(4)
-    #frame += //flags
-    frame += data #TODO .zfill(length + length%2)?
+    frame += str(ID).zfill(2)
+    frame += str(flags).zfill(2)
+    frame += data
+    print "checksum frame : " + frame
     cs = checksum(frame)
     con.send('a')
     con.send('b')
@@ -27,10 +28,9 @@ def send_frame(con, ID, flags, data):
     con.send(pack("!I", header))
     con.send(pack("!I", cs))
     con.send(pack("!I", length))
-    con.send(pack("!I", ID))
+    con.send(pack("!I", ID)) #TODO byte??
     con.send(pack("!B", flags))
-    #con.send(0x80)
-    #TODO zfill data in a way that it always has an even length
+    #TODO data should be packed/unpacked?
     con.send(data)
     return cs
 
@@ -43,7 +43,8 @@ def recv_ack_frame(con, ID, cs):
     ack_cs = recv4B(con)
     length = recv4B(con)
     ack_ID = recv4B(con)
-    if cs == ack_cs and ack_ID == ID and length == 0:
+    flags = unpack("!B", con.recv(1))[0]
+    if cs == ack_cs and ack_ID == ID and length == 0 and flags & 0x80:
 	return True
     return False
 
@@ -58,7 +59,6 @@ if argv[1] == "-c":
     length = len(data)
     nframes = length/FRAME_LENGTH
     ID = 0
-    end_flag = 0
     ack = 0
     for i in range(nframes + 1):
         while ack == 0:
