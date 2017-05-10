@@ -27,12 +27,12 @@ def send_frame(con, ID, data, flag_end):
     con.send('a')
     con.send(pack("!I", header))
     con.send(pack("!I", header))
-    con.send(pack("!I", cs))
-    con.send(pack("!I", length))
-    con.send(pack("!I", ID))
-    con.send(0x80)
+    #con.send(pack("!I", cs))
+    #con.send(pack("!I", length))
+    #con.send(pack("!I", ID))
+    #con.send(0x80)
     #TODO zfill data in a way that it always has an even length
-    con.send(data)
+    #con.send(data)
     return cs
 
 def recv_ack_frame(con, ID, cs):
