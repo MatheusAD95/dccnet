@@ -1,4 +1,4 @@
-PORT=51000
+PORT=51005
 HOST=127.0.0.1
 CLIENT_I=client.i
 CLIENT_O=client.o
@@ -10,3 +10,7 @@ client:
 server:
 	python server.py -s $(PORT) $(SERVER_I) $(SERVER_O)
 
+s2:
+	python server.py -s $(PORT2) $(SERVER_I) $(SERVER_O)
+c2:
+	python client.py -c $(HOST):$(PORT2) $(CLIENT_I) $(CLIENT_O)

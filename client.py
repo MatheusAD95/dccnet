@@ -14,15 +14,18 @@ def send_frame(con, ID, flags, data):
     # placeholder for the checksum
     frame += '0000'
     length = len(data)
-    print data
-    print str(length).zfill(4) 
+    udata = unpack_data(data)
+    print "DATA: " + udata
+    print hex(length)[2:].zfill(4) 
     frame += str(length).zfill(4)
     frame += str(ID).zfill(2)
-    frame += str(flags).zfill(2)
-    frame += data
+    print "ID: " + str(ID).zfill(2)
+    frame += hex(flags)[2:].zfill(2)
+    print "flags: " + hex(flags)[2:].zfill(2)
+    frame += udata
     print "checksum frame : " + frame
     cs = checksum(frame)
-    con.send('a')
+    con.send('a') #TODO remove this (its here just to test if we can sync)
     con.send('b')
     con.send(pack("!I", header))
     con.send(pack("!I", header))
@@ -48,6 +51,15 @@ def recv_ack_frame(con, ID, cs):
 	return True
     return False
 
+#takes the binary data and converts it to a string representation
+#occupying double the ammount of space
+def unpack_data(data):
+    udata = ""
+    length = len(data)
+    for byte in data:
+        udata += hex(unpack("!B", byte)[0])[2:].zfill(2)
+    return udata
+
 FRAME_LENGTH = (1024 - 112)/8 #112 bits are used for the header
 if argv[1] == "-c":
     (HOST, PORT) = argv[2].split(":")
@@ -56,16 +68,21 @@ if argv[1] == "-c":
     tcp.settimeout(5)
     f = open(argv[3],'r')
     data = f.read()
-    proc_data = []
-    for byte in data:
+    length = len(data)
+    proc_data = ""
+    for i in range(length):
         #print byte
-        proc_data.insert(0, hex(unpack("!B", byte)[0])[2:].zfill(2))
+        proc_data += hex(unpack("!B", data[i])[0])[2:].zfill(2)
+        #proc_data.insert(0, hex(unpack("!B", byte)[0])[2:].zfill(2))
+    print "PROC DATA: " + proc_data
     #print proc_data
     #data = proc_data
-#
+    #
     #hex(unpack(data[0]))[2:]
-#
-    length = len(data)
+    #
+    #print "PROC DATA" + proc_data
+    #data = proc_data
+    #print "DATA POST PROC DATA" + data
     nframes = length/FRAME_LENGTH
     ID = 0
     ack = 0
@@ -84,4 +101,4 @@ if argv[1] == "-c":
             except socket.timeout:
                 ack = 0
         print "Send sucessfull"
-    tcp.close();
+    tcp.close()

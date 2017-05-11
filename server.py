@@ -32,6 +32,13 @@ def sync_packet(con):
     (usync2, psync2) = recv4BR(con)
     return (usync1, usync2, psync1 + psync2)
 
+def unpack_data(data):
+    udata = ""
+    length = len(data)
+    for byte in data:
+        udata += hex(unpack("!B", byte)[0])[2:].zfill(2)
+    return udata
+
 def recv_frame(con):
     (sync1, sync2, rsync) = sync_packet(con)
     # receives data until it finds the double sync 0xdcc023c2
@@ -41,13 +48,17 @@ def recv_frame(con):
     length = recv4B(con)
     ID = recv4B(con)
     flags = unpack("!B", con.recv(1))[0]
-    data = con.recv(4*length, 8) #TODO length should be forced to be even
+    #data = con.recv(4*length, 8) #TODO length should be forced to be even
+    data = con.recv(length, 8) #TODO length should be forced to be even
     frame = hex(sync1)[2:] + hex(sync2)[2:]
     frame += '0000'
-    frame += str(length).zfill(4)
+    frame += hex(length)[2:].zfill(4)
     frame += str(ID).zfill(2)
-    frame += str(flags).zfill(2)
-    frame += data
+    frame += hex(flags)[2:].zfill(2)
+    udata = unpack_data(data)
+    #frame += data
+    print "RECEIVED DATA " + udata
+    frame += udata
     return (frame, ID, cs, flags)
 
 def send_ack_frame(con, ID, cs, flags):
