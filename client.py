@@ -16,7 +16,7 @@ def send_frame(con, ID, flags, data):
     length = len(data)
     udata = unpack_data(data)
     print "DATA: " + udata
-    print hex(length)[2:].zfill(4) 
+    print "LENGTH: " + hex(length)[2:].zfill(4) 
     frame += str(length).zfill(4)
     frame += str(ID).zfill(2)
     print "ID: " + str(ID).zfill(2)
@@ -60,7 +60,8 @@ def unpack_data(data):
         udata += hex(unpack("!B", byte)[0])[2:].zfill(2)
     return udata
 
-FRAME_LENGTH = (1024 - 112)/8 #112 bits are used for the header
+#FRAME_LENGTH = (1024 - 112)/8 #112 bits are used for the header
+FRAME_LENGTH = (128 - 112)/8 #112 bits are used for the header
 if argv[1] == "-c":
     (HOST, PORT) = argv[2].split(":")
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -85,20 +86,24 @@ if argv[1] == "-c":
     #print "DATA POST PROC DATA" + data
     nframes = length/FRAME_LENGTH
     ID = 0
-    ack = 0
     for i in range(nframes + 1):
+        print "Preparing frame " + str(i)
+        ack = 0
         while ack == 0:
             a = i*FRAME_LENGTH
             b = a + FRAME_LENGTH
+            print "Interval: " + str(a) + " : " + str(b)
+            print "Data from this frame: " + unpack_data(data[a:b])
             flags = 0x00
             if i == nframes: #last frame
                 flags |= 0x40 
-                b = length%FRAME_LENGTH
+                b = a + length%FRAME_LENGTH
+            print "Interval confirmation: " + str(a) + " : " + str(b)
             cs = send_frame(tcp, ID, flags, data[a:b])
             try:
                 if recv_ack_frame(tcp, ID, cs):
                     ack = 1
             except socket.timeout:
                 ack = 0
-        print "Send sucessfull"
+    print "All frames were sent sucessfully"
     tcp.close()
