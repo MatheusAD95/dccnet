@@ -37,12 +37,37 @@ def send_frame(con, ID, flags, data):
     con.send(data)
     return cs
 
+def recv4BR(con):
+    data = ""
+    data += con.recv(1)
+    data += con.recv(1)
+    data += con.recv(1)
+    data += con.recv(1)
+    unpacked_data = unpack('!I', data)[0]
+    return (unpacked_data, data)
+
+def concat1B(con, rsync):
+    new_byte = con.recv(1)
+    new_sync = rsync[1:] + new_byte
+    sync1 = unpack('!I', new_sync[:4])[0]
+    sync2 = unpack('!I', new_sync[4:])[0]
+    return (sync1, sync2, new_sync)
+
+def sync_packet(con):
+    (usync1, psync1) = recv4BR(con)
+    (usync2, psync2) = recv4BR(con)
+    return (usync1, usync2, psync1 + psync2)
+
 def recv_ack_frame(con, ID, cs):
-    sync1 = recv4B(con)
-    sync2 = recv4B(con)
+    #sync1 = recv4B(con)
+    #sync2 = recv4B(con)
+    #while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
+    #    sync1 = sync2
+    #    sync2 = recv4B(con)
+    (sync1, sync2, rsync) = sync_packet(con)
+    # receives data until it finds the double sync 0xdcc023c2
     while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
-	sync1 = sync2
-	sync2 = recv4B(con)
+        (sync1, sync2, rsync) = concat1B(con, rsync)
     ack_cs = recv4B(con)
     length = recv4B(con)
     ack_ID = recv4B(con)
@@ -85,10 +110,11 @@ if argv[1] == "-c":
     #data = proc_data
     #print "DATA POST PROC DATA" + data
     nframes = length/FRAME_LENGTH
-    ID = 0
+    ID = 1
     for i in range(nframes + 1):
         print "Preparing frame " + str(i)
         ack = 0
+        ID = (ID + 1)%2
         while ack == 0:
             a = i*FRAME_LENGTH
             b = a + FRAME_LENGTH

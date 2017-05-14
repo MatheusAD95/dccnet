@@ -89,6 +89,7 @@ if argv[1] == "-s":
             print "Received cs: " + hex(cs)
             print "My cs: " + hex(checksum(frame))
             if checksum(frame) == cs and frameID != ID:
+                ID = (ID + 1)%2
                 print "Data is correct. Preparing to send ack"
                 send_ack_frame(con, frameID, cs, flags)
                 print "Ack sent"
