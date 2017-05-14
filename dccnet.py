@@ -47,13 +47,13 @@ def recv_frame(con):
     flags = unpack("!B", con.recv(1))[0]
     data = con.recv(length, 8)
     frame = hex(sync1)[2:] + hex(sync2)[2:]
-    frame += '0000'
+    frame += hex(cs)[2:].zfill(4)#'0000'
     frame += hex(length)[2:].zfill(4)
     frame += str(ID).zfill(2)
     frame += hex(flags)[2:].zfill(2)
     udata = unpack_data(data)
     frame += udata
-    return (frame, ID, cs, flags)
+    return (frame, ID, cs, flags, data, length)
 
 def send_ack_frame(con, ID, cs, flags):
     header = 0xdcc023c2
@@ -99,59 +99,115 @@ def send_frame(con, ID, flags, data):
     con.send(data)
     return cs
 
-
-def client(HOST, PORT, FNAME):
-    FRAME_LENGTH = (128 - 112)/8
-    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp.connect((HOST, PORT))
-    tcp.settimeout(5)
-    f = open(FNAME, 'r')
-    data = f.read()
-    length = len(data)
-    nframes = length/FRAME_LENGTH
-    ID = 1
-    for i in range(nframes + 1):
-        ack = 0
-        ID = (ID + 1)%2
-        while ack == 0:
-            a = i*FRAME_LENGTH
-            b = a + FRAME_LENGTH
-            flags = 0x00
-            if i == nframes: #last frame
-                flags |= 0x40 
-                b = a + length%FRAME_LENGTH
-            cs = send_frame(tcp, ID, flags, data[a:b])
-            try:
-                if recv_ack_frame(tcp, ID, cs):
-                    ack = 1
-            except socket.timeout:
-                ack = 0
-    tcp.close()
-
-def server(PORT):
+def server(PORT, INPUT, OUTPUT):
+    FRAME_LENGTH = 128
+    MAX_DATA_LENGTH = (FRAME_LENGTH - 112)/8
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp.bind(('', PORT))
     tcp.listen(1)
     ID = 1
-    flag = 0;
-    while True:
-        con, cliente = tcp.accept()
-        while True:
-            (frame, frameID, cs, flags) = recv_frame(con)
-            fcs = checksum(frame)
-            if fcs == cs and frameID != ID:
-                ID = (ID + 1)%2
-                send_ack_frame(con, frameID, cs, flags)
-                if flags & 0x40:
-                    break
-            elif fcs == cs and frameID != ID:
-                send_ack_frame(con, frameID, cs, flags)
+    IDI = 0
+    all_data_sent = 0
+    all_data_recv = 0
+    outf = open(OUTPUT, "w")
+    con, cliente = tcp.accept()
+    con.settimeout(5)
+    inf = open(INPUT, "r")
+    idata = inf.read(MAX_DATA_LENGTH)
+    next_idata = inf.read(MAX_DATA_LENGTH)
+    try:
+        while all_data_sent == 0 or all_data_recv == 0:
+            flags = 0x00
+            if (next_idata == ""):
+                flags |= 0x40 
+            if (idata != ""):
+                lcs = send_frame(con, IDI, flags, idata)
+            else:
+                all_data_sent = 1
+
+            (frame, frameID, cs, flags, data, length) = recv_frame(con)
+            # ACK FRAME
+            if cs == lcs and frameID == IDI and length == 0 and flags & 0x80:
+                idata = next_idata
+                next_idata = inf.read(MAX_DATA_LENGTH)
+                IDI = (IDI + 1)%2
+            # DATA FRAME
+            else:
+                fcs = checksum(frame) # error check (fcs should be equal to cs)
+                if fcs == cs and frameID != ID:
+                    outf.write(data)
+                    ID = (ID + 1)%2
+                    send_ack_frame(con, frameID, cs, flags)
+                    if flags & 0x40:
+                        all_data_recv = 1
+                        outf.close()
+                elif fcs == cs and frameID == ID:
+                    send_ack_frame(con, frameID, cs, flags)
+        inf.close()
         con.close()
-    tcp.close()
+        tcp.close()
+    except: # if the client received the last frame it will send the ack
+            # and then close the connection. The server may not receive this
+            # ack, but all frames have been correctly sent
+        inf.close()
+        con.close()
+        tcp.close()
+
+def client(HOST, PORT, INPUT, OUTPUT):
+    FRAME_LENGTH = 128
+    MAX_DATA_LENGTH = (FRAME_LENGTH - 112)/8
+    con = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    con.connect((HOST, PORT))
+    con.settimeout(5)
+    ID = 1
+    IDI = 0
+    flag = 0;
+    all_data_sent = 0
+    all_data_recv = 0
+    outf = open(OUTPUT, "w")
+    inf = open(INPUT, "r")
+    idata = inf.read(MAX_DATA_LENGTH)
+    next_idata = inf.read(MAX_DATA_LENGTH)
+    try:
+        while all_data_sent == 0 or all_data_recv == 0:
+            flags = 0x00
+            if (next_idata == ""):
+                flags |= 0x40 
+            if (idata != ""):
+                lcs = send_frame(con, IDI, flags, idata)
+            else:
+                all_data_sent = 1
+            (frame, frameID, cs, flags, data, length) = recv_frame(con)
+            # ACK FRAME
+            if cs == lcs and frameID == IDI and length == 0 and flags & 0x80:
+                idata = next_idata
+                next_idata = inf.read(MAX_DATA_LENGTH)
+                IDI = (IDI + 1)%2
+            # DATA FRAME
+            else:
+                fcs = checksum(frame) # error check
+                if fcs == cs and frameID != ID:
+                    outf.write(data)
+                    ID = (ID + 1)%2
+                    flags = 0x00
+                    send_ack_frame(con, frameID, cs, flags)
+                    if flags & 0x40:
+                        all_data_recv = 1
+                        outf.close()
+                elif fcs == cs and frameID != ID:
+                    send_ack_frame(con, frameID, cs, flags)
+        inf.close()
+        con.close()
+    except: # if the server receives the last frame, sends ack but the
+            # client doesnt recv the last ack the server will end up closing
+            # the connection, but all data has been sent
+        inf.close()
+        con.close()
+
 
 #----------------------------------- MAIN ------------------------------------#
 if argv[1] == "-c":
     (HOST, PORT) = argv[2].split(":")
-    client(HOST, int(PORT), argv[3])
+    client(HOST, int(PORT), argv[3], argv[4])
 elif argv[1] == "-s":
-    server(int(argv[2]))
+    server(int(argv[2]), argv[3], argv[4])
