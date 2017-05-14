@@ -14,8 +14,6 @@ def checksum(f):
         s = s + int(f[i:i + 4], 16)
     s = s - int(f[16:20], 16)
     for i in range(28, 28 + length, 4):
-        print f[i:i+4]
         s = s + int(f[i:i + 4], 16)
-        print "done"
     carry = (s & 0xFFFF0000) >> 16
     return ~(carry + (s & 0xFFFF)) & 0xFFFF
