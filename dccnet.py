@@ -3,11 +3,6 @@ from checksum import checksum
 from sys import argv
 from struct import pack, unpack
 
-def recv4B(con):
-    data = con.recv(4)
-    unpacked_data = unpack('!I', data)[0]
-    return unpacked_data
-
 def recv4BR(con):
     data = ""
     data += con.recv(1)
@@ -41,13 +36,13 @@ def recv_frame(con):
     # receives data until it finds the double sync 0xdcc023c2
     while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
         (sync1, sync2, rsync) = concat1B(con, rsync)
-    cs = recv4B(con)
-    length = recv4B(con)
-    ID = recv4B(con)
+    cs = unpack("!H", con.recv(2))[0]
+    length = unpack("!H", con.recv(2))[0]
+    ID = unpack("!B", con.recv(1))[0]
     flags = unpack("!B", con.recv(1))[0]
     data = con.recv(length, 8)
     frame = hex(sync1)[2:] + hex(sync2)[2:]
-    frame += hex(cs)[2:].zfill(4)#'0000'
+    frame += hex(cs)[2:].zfill(4)
     frame += hex(length)[2:].zfill(4)
     frame += str(ID).zfill(2)
     frame += hex(flags)[2:].zfill(2)
@@ -60,29 +55,15 @@ def send_ack_frame(con, ID, cs, flags):
     length = 0
     con.send(pack("!I", header))
     con.send(pack("!I", header))
-    con.send(pack("!I", cs))
-    con.send(pack("!I", length))
-    con.send(pack("!I", ID))
+    con.send(pack("!H", cs))
+    con.send(pack("!H", length))
+    con.send(pack("!B", ID))
     con.send(pack("!B", flags | 0x80))
-
-def recv_ack_frame(con, ID, cs):
-    (sync1, sync2, rsync) = sync_packet(con)
-    # receives data until it finds the double sync 0xdcc023c2
-    while sync1 != 0xdcc023c2 and sync2 != 0xdcc023c2:
-        (sync1, sync2, rsync) = concat1B(con, rsync)
-    ack_cs = recv4B(con)
-    length = recv4B(con)
-    ack_ID = recv4B(con)
-    flags = unpack("!B", con.recv(1))[0]
-    if cs == ack_cs and ack_ID == ID and length == 0 and flags & 0x80:
-	return True
-    return False
 
 def send_frame(con, ID, flags, data):
     header = 0xdcc023c2
     frame = hex(header)[2:] + hex(header)[2:]
-    # placeholder for the checksum
-    frame += '0000'
+    frame += '0000' # placeholder for the checksum
     length = len(data)
     udata = unpack_data(data)
     frame += str(length).zfill(4)
@@ -92,9 +73,9 @@ def send_frame(con, ID, flags, data):
     cs = checksum(frame)
     con.send(pack("!I", header))
     con.send(pack("!I", header))
-    con.send(pack("!I", cs))
-    con.send(pack("!I", length))
-    con.send(pack("!I", ID)) #TODO byte??
+    con.send(pack("!H", cs))
+    con.send(pack("!H", length))
+    con.send(pack("!B", ID))
     con.send(pack("!B", flags))
     con.send(data)
     return cs
@@ -124,8 +105,11 @@ def server(PORT, INPUT, OUTPUT):
                 lcs = send_frame(con, IDI, flags, idata)
             else:
                 all_data_sent = 1
-
-            (frame, frameID, cs, flags, data, length) = recv_frame(con)
+            
+            try:
+                (frame, frameID, cs, flags, data, length) = recv_frame(con)
+            except:
+                lcs = send_frame(con, IDI, flags, idata)
             # ACK FRAME
             if cs == lcs and frameID == IDI and length == 0 and flags & 0x80:
                 idata = next_idata
@@ -177,7 +161,10 @@ def client(HOST, PORT, INPUT, OUTPUT):
                 lcs = send_frame(con, IDI, flags, idata)
             else:
                 all_data_sent = 1
-            (frame, frameID, cs, flags, data, length) = recv_frame(con)
+            try:
+                (frame, frameID, cs, flags, data, length) = recv_frame(con)
+            except socket.timeout:
+                lcs = send_frame(con, IDI, flags, idata)
             # ACK FRAME
             if cs == lcs and frameID == IDI and length == 0 and flags & 0x80:
                 idata = next_idata
