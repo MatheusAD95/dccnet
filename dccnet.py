@@ -81,7 +81,7 @@ def send_frame(con, ID, flags, data):
     return cs
 
 def server(PORT, INPUT, OUTPUT):
-    FRAME_LENGTH = 128
+    FRAME_LENGTH = 2048
     MAX_DATA_LENGTH = (FRAME_LENGTH - 112)/8
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp.bind(('', PORT))
@@ -117,7 +117,7 @@ def server(PORT, INPUT, OUTPUT):
                 IDI = (IDI + 1)%2
             # DATA FRAME
             else:
-                fcs = checksum(frame) # error check (fcs should be equal to cs)
+                fcs = checksum(frame) # error check
                 if fcs == cs and frameID != ID:
                     outf.write(data)
                     ID = (ID + 1)%2
@@ -138,7 +138,7 @@ def server(PORT, INPUT, OUTPUT):
         tcp.close()
 
 def client(HOST, PORT, INPUT, OUTPUT):
-    FRAME_LENGTH = 128
+    FRAME_LENGTH = 2048
     MAX_DATA_LENGTH = (FRAME_LENGTH - 112)/8
     con = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     con.connect((HOST, PORT))
